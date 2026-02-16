@@ -16,14 +16,16 @@ def get_global_leaderboard():
 GLOBAL_ROOMS = get_global_rooms()
 GLOBAL_LB = get_global_leaderboard()
 
-# --- HIGH-END ANIMATED DESIGN ---
+# --- ULTRA-FINE UI & ANIMATIONS ---
 st.markdown("""
     <style>
     audio { display: none; }
+    
+    /* Dynamic Animated Gradient Background */
     .stApp {
-        background: linear-gradient(-45deg, #1e5631, #2a7a45, #a8e063, #f0f4f1);
+        background: linear-gradient(-45deg, #0a2e1a, #1e5631, #2a7a45, #143d21);
         background-size: 400% 400%;
-        animation: activeGradient 12s ease infinite;
+        animation: activeGradient 15s ease infinite;
         background-attachment: fixed;
     }
     @keyframes activeGradient {
@@ -31,51 +33,96 @@ st.markdown("""
         50% { background-position: 100% 50%; }
         100% { background-position: 0% 50%; }
     }
+
+    /* Floating Aura Effect */
     .stApp::before {
         content: "";
         position: fixed;
         top: 0; left: 0; width: 100%; height: 100%;
-        background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 0%, transparent 50%);
-        animation: auraMove 8s infinite alternate;
+        background: radial-gradient(circle at 50% 50%, rgba(168, 224, 99, 0.15) 0%, transparent 70%);
+        animation: auraMove 10s infinite alternate;
         pointer-events: none;
     }
     @keyframes auraMove {
-        from { transform: scale(1) translate(-10%, -10%); }
-        to { transform: scale(1.2) translate(10%, 10%); }
+        from { transform: scale(1) translate(-5%, -5%); }
+        to { transform: scale(1.3) translate(5%, 5%); }
     }
+
+    /* Glassmorphism Home Card */
+    .home-card {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 40px;
+        padding: 50px 20px;
+        text-align: center;
+        box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+        margin-top: 20px;
+        animation: slideUp 1.2s ease-out;
+    }
+    @keyframes slideUp {
+        from { opacity: 0; transform: translateY(40px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Elegant Typography */
+    .hero-title {
+        font-family: 'Inter', sans-serif;
+        font-weight: 900;
+        font-size: 3.5rem !important;
+        color: white;
+        text-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        letter-spacing: -2px;
+        margin-bottom: 0px;
+    }
+    .hero-subtitle {
+        color: #a8e063;
+        font-size: 1.2rem;
+        font-weight: 400;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-bottom: 30px;
+    }
+
+    /* Question & Box Styling */
     .question-box {
-        background: rgba(255, 255, 255, 0.85);
+        background: rgba(255, 255, 255, 0.9);
         backdrop-filter: blur(15px);
         padding: 40px;
         border-radius: 30px;
-        border: 1px solid rgba(255, 255, 255, 0.5);
         border-left: 12px solid #1e5631;
-        box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.2);
         margin-bottom: 30px;
         color: #1e5631;
     }
-    .winner-box {
-        background: linear-gradient(135deg, #FFD700, #FFFACD);
-        padding: 30px;
-        border-radius: 20px;
-        border: 5px solid #DAA520;
-        text-align: center;
-        margin-bottom: 30px;
-        animation: pulse 2s infinite;
-    }
-    .podium-card {
-        padding: 20px; border-radius: 15px; margin: 10px 0;
-        text-align: center; font-weight: 900; font-size: 22px;
+
+    /* Custom Button Animation */
+    .stButton>button { 
+        width: 100%; border-radius: 25px; height: 4.5em; 
+        font-size: 18px; font-weight: 800; 
+        background: white; color: #1e5631; border: none; 
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         box-shadow: 0 10px 20px rgba(0,0,0,0.1);
     }
-    .standard { background: white; color: #1e5631; border: 1px solid #ddd; font-size: 18px; font-weight: bold; }
-    .stButton>button { 
-        width: 100%; border-radius: 20px; height: 4.5em; 
-        font-size: 18px; font-weight: 800; 
-        background: white; color: #1e5631; border: 2px solid #1e5631; 
-        transition: all 0.3s ease;
+    .stButton>button:hover { 
+        transform: translateY(-5px) scale(1.02);
+        box-shadow: 0 20px 30px rgba(0,0,0,0.2);
+        background-color: #a8e063 !important;
+        color: #1e5631 !important;
     }
-    .stButton>button:hover { background-color: #1e5631 !important; color: white !important; transform: scale(1.02); }
+
+    /* Glowing Start Button specific to Home */
+    .start-btn button {
+        background: linear-gradient(90deg, #ffffff, #f0f4f1) !important;
+        border: 2px solid #a8e063 !important;
+        animation: pulseGlow 2s infinite;
+    }
+    @keyframes pulseGlow {
+        0% { box-shadow: 0 0 0 0 rgba(168, 224, 99, 0.4); }
+        70% { box-shadow: 0 0 0 20px rgba(168, 224, 99, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(168, 224, 99, 0); }
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -122,13 +169,20 @@ def nav_footer(back_to=None):
 
 # --- PAGES ---
 if st.session_state.page == 'welcome':
-    c1, c2, c3 = st.columns([1, 4, 1])
+    st.markdown('<div class="home-card">', unsafe_allow_html=True)
+    c1, c2, c3 = st.columns([1, 2, 1])
     with c2:
-        if os.path.exists('logo.png'): st.image('logo.png', use_container_width=True)
-    st.markdown("<h1 style='text-align: center; color: white;'>WELCOME TO CATG QUIZ</h1>", unsafe_allow_html=True)
+        if os.path.exists('logo.png'): 
+            st.image('logo.png', use_container_width=True)
+    st.markdown('<h1 class="hero-title">CATG QUIZ</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="hero-subtitle">The Ultimate Pro Challenge</p>', unsafe_allow_html=True)
+    
+    # Glowing Button Wrapper
+    st.markdown('<div class="start-btn">', unsafe_allow_html=True)
     if st.button("GET STARTED"): 
         st.session_state.page = 'mode_selection'
         st.rerun()
+    st.markdown('</div></div>', unsafe_allow_html=True)
 
 elif st.session_state.page == 'mode_selection':
     st.markdown("<h2 style='text-align: center; color: white;'>Choose Your Mode</h2>", unsafe_allow_html=True)
@@ -186,7 +240,6 @@ elif st.session_state.page == 'lobby':
     @st.fragment(run_every=1)
     def lobby_sync():
         room = GLOBAL_ROOMS.get(st.session_state.room_code)
-        # Persistent Room Code Display
         st.markdown(f"<h2 style='text-align: center; color: white;'>ROOM CODE: {st.session_state.room_code}</h2>", unsafe_allow_html=True)
         if not st.session_state.is_host and room['started']: st.session_state.page = 'quiz_init'; st.rerun()
         st.markdown("<div class='question-box'>", unsafe_allow_html=True)

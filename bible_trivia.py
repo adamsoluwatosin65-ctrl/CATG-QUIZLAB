@@ -16,7 +16,7 @@ def get_global_leaderboard():
 GLOBAL_ROOMS = get_global_rooms()
 GLOBAL_LB = get_global_leaderboard()
 
-# --- HIGH-END ANIMATED DESIGN ---
+# --- HIGH-END ANIMATED DESIGN (Original) ---
 st.markdown("""
     <style>
     audio { display: none; }
@@ -30,18 +30,6 @@ st.markdown("""
         0% { background-position: 0% 50%; }
         50% { background-position: 100% 50%; }
         100% { background-position: 0% 50%; }
-    }
-    .stApp::before {
-        content: "";
-        position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 0%, transparent 50%);
-        animation: auraMove 8s infinite alternate;
-        pointer-events: none;
-    }
-    @keyframes auraMove {
-        from { transform: scale(1) translate(-10%, -10%); }
-        to { transform: scale(1.2) translate(10%, 10%); }
     }
     .question-box {
         background: rgba(255, 255, 255, 0.85);
@@ -74,16 +62,12 @@ st.markdown("""
         box-shadow: 0 10px 20px rgba(0,0,0,0.1);
     }
     .gold { background: linear-gradient(90deg, #FFD700, #FFFACD); color: #8B4513; border: 3px solid #DAA520; }
-    .silver { background: linear-gradient(90deg, #C0C0C0, #F5F5F5); color: #4F4F4F; border: 3px solid #A9A9A9; }
-    .bronze { background: linear-gradient(90deg, #CD7F32, #FAEBD7); color: #5D2906; border: 3px solid #8B4513; }
     .standard { background: white; color: #1e5631; border: 1px solid #ddd; font-size: 18px; font-weight: bold; }
     .stButton>button { 
         width: 100%; border-radius: 20px; height: 4.5em; 
         font-size: 18px; font-weight: 800; 
         background: white; color: #1e5631; border: 2px solid #1e5631; 
-        transition: all 0.3s ease;
     }
-    .stButton>button:hover { background-color: #1e5631 !important; color: white !important; transform: scale(1.02); }
     </style>
     """, unsafe_allow_html=True)
 
@@ -103,28 +87,31 @@ def play_audio(file_path, loop=True):
         with open(file_path, "rb") as f:
             st.audio(f.read(), format="audio/mp3", loop=loop, autoplay=True)
 
+# --- FIXED NAVIGATION FOOTER ---
 def nav_footer(back_to=None):
     st.write("---")
     c1, c2 = st.columns(2)
+    
     if back_to:
-        if c1.button("⬅️ BACK", key=f"back_{random.randint(0,9999)}"):
+        if c1.button("⬅️ BACK", key=f"back_btn_{st.session_state.page}"):
             st.session_state.confirm_quit = False
             st.session_state.page = back_to
             st.rerun()
-    
+            
     if not st.session_state.confirm_quit:
-        if c2.button("🚪 QUIT GAME", key=f"quit_btn"):
+        if c2.button("🚪 QUIT GAME", key=f"quit_btn_{st.session_state.page}"):
             st.session_state.confirm_quit = True
             st.rerun()
     else:
-        st.warning("Are you sure you want to quit?")
-        c2a, c2b = st.columns(2)
-        if c2a.button("✅ YES", key="yes_quit"):
-            st.session_state.clear()
-            st.rerun()
-        if c2b.button("❌ NO", key="no_quit"):
-            st.session_state.confirm_quit = False
-            st.rerun()
+        with st.container():
+            st.warning("Are you sure you want to quit?")
+            k1, k2 = st.columns(2)
+            if k1.button("✅ YES", key=f"yes_{st.session_state.page}"):
+                st.session_state.clear()
+                st.rerun()
+            if k2.button("❌ NO", key=f"no_{st.session_state.page}"):
+                st.session_state.confirm_quit = False
+                st.rerun()
 
 @st.fragment(run_every=1)
 def high_speed_timer():
@@ -138,14 +125,10 @@ def high_speed_timer():
                 GLOBAL_LB.append(entry)
             st.session_state.page = 'summary'
             st.rerun()
-        st.markdown(f"<div style='text-align:right; font-weight:900; color:white; font-size:24px; text-shadow: 1px 1px 5px black;'>⏱️ {remaining}s</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='text-align:right; font-weight:900; color:white; font-size:24px;'>⏱️ {remaining}s</div>", unsafe_allow_html=True)
 
 # --- APP PAGES ---
-
 if st.session_state.page == 'welcome':
-    c1, c2, c3 = st.columns([1, 4, 1])
-    with c2:
-        if os.path.exists('logo.png'): st.image('logo.png', use_container_width=True)
     st.markdown("<h1 style='text-align: center; color: white;'>WELCOME TO CATG QUIZ</h1>", unsafe_allow_html=True)
     if st.button("GET STARTED"): 
         st.session_state.page = 'mode_selection'
@@ -153,48 +136,32 @@ if st.session_state.page == 'welcome':
 
 elif st.session_state.page == 'mode_selection':
     st.markdown("<h2 style='text-align: center; color: white;'>Choose Your Mode</h2>", unsafe_allow_html=True)
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.button("SINGLE PLAYER"):
-            st.session_state.game_mode = 'single'; st.session_state.page = 'register'; st.rerun()
-    with col2:
-        if st.button("MULTIPLAYER"):
-            st.session_state.game_mode = 'multi'; st.session_state.page = 'register'; st.rerun()
-    with col3:
-        if st.button("PLAY WITH FRIENDS"):
-            st.session_state.game_mode = 'room'; GLOBAL_LB.clear(); st.session_state.page = 'room_setup'; st.rerun()
+    c1, c2, c3 = st.columns(3)
+    if c1.button("SINGLE"): st.session_state.game_mode = 'single'; st.session_state.page = 'register'; st.rerun()
+    if c2.button("MULTI"): st.session_state.game_mode = 'multi'; st.session_state.page = 'register'; st.rerun()
+    if c3.button("FRIENDS"): st.session_state.game_mode = 'room'; st.session_state.page = 'room_setup'; st.rerun()
     nav_footer(back_to='welcome')
 
 elif st.session_state.page == 'room_setup':
-    tab1, tab2 = st.tabs(["CREATE ROOM", "JOIN ROOM"])
-    with tab1:
+    t1, t2 = st.tabs(["CREATE", "JOIN"])
+    with t1:
         r_code = st.text_input("Room Code", value=str(random.randint(1000, 9999)))
-        st.code(r_code)
-        # Increased maximum spaces to 30
-        r_slots = st.slider("Available Spaces", 2, 30, 4) 
-        r_time = st.select_slider("Pick Time Limit (Minutes)", options=[1, 2, 3, 5, 10])
+        r_slots = st.slider("Max Players", 2, 30, 10)
         if st.button("OPEN ROOM"):
-            st.session_state.update({'room_code':r_code, 'is_host':True, 'time_limit':r_time*60})
-            GLOBAL_ROOMS[r_code] = {'players': [], 'started': False, 'time': r_time*60, 'slots': r_slots}
+            st.session_state.update({'room_code':r_code, 'is_host':True, 'time_limit':60})
+            GLOBAL_ROOMS[r_code] = {'players': [], 'started': False, 'time': 60, 'slots': r_slots}
             st.session_state.page = 'register'; st.rerun()
-    with tab2:
+    with t2:
         join_code = st.text_input("Enter Room Code")
-        if st.button("JOIN"):
+        if st.button("JOIN ROOM"):
             if join_code in GLOBAL_ROOMS:
-                room = GLOBAL_ROOMS[join_code]
-                if len(room['players']) < room['slots'] and not room['started']:
-                    st.session_state.update({'room_code':join_code, 'is_host':False, 'time_limit':room['time'], 'page':'register'})
-                    st.rerun()
-                elif len(room['players']) >= room['slots']: st.error("Room is full!")
-                else: st.error("Game already started!")
-            else: st.error("Invalid Code")
+                st.session_state.update({'room_code':join_code, 'is_host':False, 'page':'register'})
+                st.rerun()
     nav_footer(back_to='mode_selection')
 
 elif st.session_state.page == 'register':
-    name = st.text_input("Enter Your Name")
-    if st.session_state.game_mode != 'room':
-        st.session_state.time_limit = st.selectbox("Time Limit (Seconds)", [30, 60, 120, 300], index=1)
-    if st.button("START"):
+    name = st.text_input("Your Name")
+    if st.button("GO"):
         if name:
             st.session_state.multi_players = [name]
             st.session_state.questions_data = json.load(open('questions.json')) if os.path.exists('questions.json') else []
@@ -209,51 +176,40 @@ elif st.session_state.page == 'lobby':
     @st.fragment(run_every=1)
     def lobby_sync():
         room = GLOBAL_ROOMS.get(st.session_state.room_code)
-        if not st.session_state.is_host and room['started']: st.session_state.page = 'quiz_init'; st.rerun()
-        st.write(f"### Joined Players ({len(room['players'])}/{room['slots']}):")
-        for p in room['players']: st.write(f"✅ {p}")
-        if st.session_state.is_host and st.button("START GAME FOR EVERYONE"):
+        st.write(f"Players: {room['players']}")
+        if st.session_state.is_host and st.button("START"):
             room['started'] = True; st.session_state.page = 'quiz_init'; st.rerun()
+        if not st.session_state.is_host and room['started']:
+            st.session_state.page = 'quiz_init'; st.rerun()
     lobby_sync()
     nav_footer(back_to='room_setup')
 
 elif st.session_state.page == 'quiz_init':
-    indices = list(range(len(st.session_state.questions_data)))
-    random.shuffle(indices)
-    st.session_state.update({'p_name': st.session_state.multi_players[0], 'start_time': time.time(), 'score': 0, 'current_step': 0, 'page': 'quiz', 'shuffled_indices': indices, 'wrong_answers': []})
+    st.session_state.update({'p_name': st.session_state.multi_players[0], 'start_time': time.time(), 'score': 0, 'current_step': 0, 'page': 'quiz', 'shuffled_indices': list(range(len(st.session_state.questions_data))), 'wrong_answers': []})
     st.rerun()
 
 elif st.session_state.page == 'quiz':
-    play_audio("background_music.mp3")
     high_speed_timer()
-    q_idx = st.session_state.shuffled_indices[st.session_state.current_step]
-    q = st.session_state.questions_data[q_idx]
+    q = st.session_state.questions_data[st.session_state.shuffled_indices[st.session_state.current_step]]
     st.markdown(f"<div class='question-box'><h2>{q['question']}</h2></div>", unsafe_allow_html=True)
     for i, opt in enumerate(q['options']):
-        if st.button(opt, key=f"q_{st.session_state.current_step}_{i}"):
+        if st.button(opt, key=f"ans_{st.session_state.current_step}_{i}"):
             if opt == q['answer']: st.session_state.score += 1
             else: st.session_state.wrong_answers.append({'q': q['question'], 'correct': q['answer'], 'yours': opt})
             st.session_state.current_step += 1
-            if st.session_state.current_step >= len(st.session_state.shuffled_indices):
+            if st.session_state.current_step >= len(st.session_state.questions_data):
                 st.session_state.leaderboard.append((st.session_state.p_name, st.session_state.score))
                 st.session_state.page = 'summary'
             st.rerun()
     nav_footer(back_to='register')
 
 elif st.session_state.page == 'summary':
-    st.write(f"# Score: {st.session_state.score}")
-    if st.session_state.wrong_answers:
-        with st.expander("Review Mistakes"):
-            for item in st.session_state.wrong_answers: st.write(f"Q: {item['q']} | Correct: {item['correct']}")
-    if st.button("FINAL LEADERBOARD"): st.session_state.page = 'final'; st.rerun()
+    st.write(f"# {st.session_state.p_name}: {st.session_state.score}")
+    if st.button("LEADERBOARD"): st.session_state.page = 'final'; st.rerun()
     nav_footer(back_to='mode_selection')
 
 elif st.session_state.page == 'final':
     play_audio("winner_sound.mp3.mp3", loop=False)
-    source_lb = GLOBAL_LB if st.session_state.game_mode == 'room' else st.session_state.leaderboard
-    sorted_lb = sorted(source_lb, key=lambda x: x[1], reverse=True)
-    if sorted_lb:
-        st.markdown(f"<div class='winner-box'><h1>🏆 {sorted_lb[0][0].upper()} 🏆</h1></div>", unsafe_allow_html=True)
-        for i, (n, s) in enumerate(sorted_lb):
-            st.markdown(f"<div class='podium-card standard'>{i+1}. {n} - {s}pts</div>", unsafe_allow_html=True)
+    for i, (n, s) in enumerate(st.session_state.leaderboard):
+        st.write(f"{i+1}. {n} - {s}")
     nav_footer(back_to='mode_selection')

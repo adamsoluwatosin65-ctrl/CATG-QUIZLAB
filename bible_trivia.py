@@ -16,24 +16,21 @@ def get_global_leaderboard():
 GLOBAL_ROOMS = get_global_rooms()
 GLOBAL_LB = get_global_leaderboard()
 
-# --- HIGH-END ANIMATED DESIGN (RE-VERIFIED) ---
+# --- HIGH-END ANIMATED DESIGN ---
 st.markdown("""
     <style>
     audio { display: none; }
-
     .stApp {
         background: linear-gradient(-45deg, #1e5631, #2a7a45, #a8e063, #f0f4f1);
         background-size: 400% 400%;
         animation: activeGradient 12s ease infinite;
         background-attachment: fixed;
     }
-
     @keyframes activeGradient {
         0% { background-position: 0% 50%; }
         50% { background-position: 100% 50%; }
         100% { background-position: 0% 50%; }
     }
-
     .stApp::before {
         content: "";
         position: fixed;
@@ -42,12 +39,10 @@ st.markdown("""
         animation: auraMove 8s infinite alternate;
         pointer-events: none;
     }
-
     @keyframes auraMove {
         from { transform: scale(1) translate(-10%, -10%); }
         to { transform: scale(1.2) translate(10%, 10%); }
     }
-
     .question-box {
         background: rgba(255, 255, 255, 0.85);
         backdrop-filter: blur(15px);
@@ -59,7 +54,6 @@ st.markdown("""
         margin-bottom: 30px;
         color: #1e5631;
     }
-
     .winner-box {
         background: linear-gradient(135deg, #FFD700, #FFFACD);
         padding: 30px;
@@ -69,15 +63,12 @@ st.markdown("""
         margin-bottom: 30px;
         animation: pulse 2s infinite;
     }
-
     .podium-card {
         padding: 20px; border-radius: 15px; margin: 10px 0;
         text-align: center; font-weight: 900; font-size: 22px;
         box-shadow: 0 10px 20px rgba(0,0,0,0.1);
     }
-    .gold { background: linear-gradient(90deg, #FFD700, #FFFACD); color: #8B4513; border: 3px solid #DAA520; }
     .standard { background: white; color: #1e5631; border: 1px solid #ddd; font-size: 18px; font-weight: bold; }
-
     .stButton>button { 
         width: 100%; border-radius: 20px; height: 4.5em; 
         font-size: 18px; font-weight: 800; 
@@ -103,22 +94,18 @@ def play_audio(file_path, loop=True):
         with open(file_path, "rb") as f:
             st.audio(f.read(), format="audio/mp3", loop=loop, autoplay=True)
 
-# --- NAVIGATION FOOTER ---
 def nav_footer(back_to=None):
     st.write("---")
     c1, c2, c3 = st.columns(3)
-    
     m_label = "🔊 UNMUTE" if st.session_state.muted else "🔇 MUTE"
     if c1.button(m_label, key=f"nav_m_{st.session_state.page}"):
         st.session_state.muted = not st.session_state.muted
         st.rerun()
-
     if back_to:
         if c2.button("⬅️ BACK", key=f"nav_b_{st.session_state.page}"):
             st.session_state.confirm_quit = False
             st.session_state.page = back_to
             st.rerun()
-            
     if not st.session_state.confirm_quit:
         if c3.button("🚪 QUIT", key=f"nav_q_{st.session_state.page}"):
             st.session_state.confirm_quit = True
@@ -199,6 +186,8 @@ elif st.session_state.page == 'lobby':
     @st.fragment(run_every=1)
     def lobby_sync():
         room = GLOBAL_ROOMS.get(st.session_state.room_code)
+        # Persistent Room Code Display
+        st.markdown(f"<h2 style='text-align: center; color: white;'>ROOM CODE: {st.session_state.room_code}</h2>", unsafe_allow_html=True)
         if not st.session_state.is_host and room['started']: st.session_state.page = 'quiz_init'; st.rerun()
         st.markdown("<div class='question-box'>", unsafe_allow_html=True)
         st.write(f"### Players ({len(room['players'])}/{room['slots']}):")
@@ -231,9 +220,6 @@ elif st.session_state.page == 'quiz':
 
 elif st.session_state.page == 'summary':
     st.markdown(f"<div class='question-box' style='text-align:center;'><h2>Score: {st.session_state.score}</h2></div>", unsafe_allow_html=True)
-    if st.session_state.wrong_answers:
-        with st.expander("REVIEW MISTAKES"):
-            for item in st.session_state.wrong_answers: st.write(f"Q: {item['q']} | Ans: {item['correct']}")
     if st.button("LEADERBOARD"): st.session_state.page = 'final'; st.rerun()
     nav_footer(back_to='mode_selection')
 

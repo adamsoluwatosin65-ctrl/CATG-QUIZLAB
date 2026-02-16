@@ -34,3 +34,4 @@ elif st.session_state.page == 'lobby':
 
     # Execute the fragment
     lobby_sync()
+

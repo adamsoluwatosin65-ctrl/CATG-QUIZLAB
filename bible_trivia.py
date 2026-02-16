@@ -156,7 +156,6 @@ elif st.session_state.page == 'room_setup':
         if st.button("JOIN"):
             if join_code in GLOBAL_ROOMS:
                 room_data = GLOBAL_ROOMS[join_code]
-                # Check if room is full
                 if len(room_data['players']) >= room_data['slots']:
                     st.error(f"⚠️ Room Full! (Max {room_data['slots']} players)")
                 elif room_data['started']:
@@ -194,6 +193,8 @@ elif st.session_state.page == 'register':
     if st.button("JOIN LOBBY" if st.session_state.game_mode == 'room' else "START QUIZ"):
         if player_names:
             all_qs = json.load(open('questions.json')) if os.path.exists('questions.json') else []
+            # Shuffle questions once at registration so everyone gets a unique random order
+            random.shuffle(all_qs) 
             st.session_state.update({'multi_players': player_names, 'questions_data': all_qs})
             if st.session_state.game_mode == 'room':
                 if player_names[0] not in GLOBAL_ROOMS[st.session_state.room_code]['players']:
@@ -233,10 +234,13 @@ elif st.session_state.page == 'lobby':
     lobby_sync()
 
 elif st.session_state.page == 'quiz_init':
+    # Ensure a fresh shuffle for the player
+    indices = list(range(len(st.session_state.questions_data)))
+    random.shuffle(indices)
     st.session_state.update({
         'p_name': st.session_state.multi_players[st.session_state.current_player_idx],
         'start_time': time.time(), 'score': 0, 'current_step': 0, 'wrong_answers': [], 'page': 'quiz',
-        'shuffled_indices': random.sample(range(len(st.session_state.questions_data)), len(st.session_state.questions_data))
+        'shuffled_indices': indices
     })
     st.rerun()
 
@@ -244,16 +248,32 @@ elif st.session_state.page == 'quiz':
     play_audio("background_music.mp3")
     high_speed_timer()
     if st.session_state.current_step < len(st.session_state.shuffled_indices):
-        q = st.session_state.questions_data[st.session_state.shuffled_indices[st.session_state.current_step]]
-        st.markdown(f"<div class='question-box'><p style='opacity:0.6;'>PLAYER: {st.session_state.p_name.upper()}</p><h2>{q['question']}</h2></div>", unsafe_allow_html=True)
-        for opt in q['options']:
-            if st.button(opt, key=f"q{st.session_state.current_step}_{opt}"):
-                if opt == q['answer']: st.session_state.score += 1
-                else: st.session_state.wrong_answers.append({'question': q['question'], 'correct': q['answer'], 'yours': opt})
+        idx = st.session_state.shuffled_indices[st.session_state.current_step]
+        q = st.session_state.questions_data[idx]
+        
+        # Unique ID using both player name and step to prevent UI state carry-over
+        unique_q_id = f"q_{st.session_state.p_name}_{st.session_state.current_step}"
+        
+        st.markdown(f"""
+            <div class='question-box'>
+                <p style='opacity:0.6;'>PLAYER: {st.session_state.p_name.upper()}</p>
+                <h2>{q['question']}</h2>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        for i, opt in enumerate(q['options']):
+            # unique key ensures buttons don't disappear or "click themselves"
+            if st.button(opt, key=f"{unique_q_id}_opt_{i}"):
+                if opt == q['answer']: 
+                    st.session_state.score += 1
+                else: 
+                    st.session_state.wrong_answers.append({'question': q['question'], 'correct': q['answer'], 'yours': opt})
                 st.session_state.current_step += 1
                 st.rerun()
     else:
-        st.session_state.leaderboard.append((st.session_state.p_name, st.session_state.score))
+        # Prevent duplicate entries in leaderboard for the same player session
+        if (st.session_state.p_name, st.session_state.score) not in st.session_state.leaderboard:
+            st.session_state.leaderboard.append((st.session_state.p_name, st.session_state.score))
         st.session_state.page = 'summary'
         st.rerun()
 
@@ -263,7 +283,10 @@ elif st.session_state.page == 'summary':
     has_next = st.session_state.game_mode == 'multi' and (st.session_state.current_player_idx + 1 < len(st.session_state.multi_players))
     cA, cB, cC = st.columns(3)
     if has_next:
-        if cA.button("NEXT PLAYER"): st.session_state.current_player_idx += 1; st.session_state.page = 'quiz_init'; st.rerun()
+        if cA.button("NEXT PLAYER"): 
+            st.session_state.current_player_idx += 1
+            st.session_state.page = 'quiz_init'
+            st.rerun()
     else:
         if cA.button("NEW GAME"): st.session_state.page = 'mode_selection'; st.rerun()
     if cB.button("LEADERBOARD"): st.session_state.page = 'final'; st.rerun()
@@ -272,10 +295,26 @@ elif st.session_state.page == 'summary':
 elif st.session_state.page == 'final':
     play_audio("winner_sound.mp3.mp3", loop=False)
     st.markdown("<h1 style='text-align: center; color: white;'>🏆 LEADERSHIP BOARD 🏆</h1>", unsafe_allow_html=True)
+    
+    # Sort leaderboard by score descending
     scores = sorted(st.session_state.leaderboard, key=lambda x: x[1], reverse=True)
+    
     for i, (n, s) in enumerate(scores):
-        style = "gold" if i==0 else "silver" if i==1 else "bronze" if i==2 else "standard"
-        st.markdown(f"<div class='podium-card {style}'>{i+1}. {n.upper()} — {s} PTS</div>", unsafe_allow_html=True)
+        if i == 0:
+            rank_text = f"🥇 1st PLACE: {n.upper()}"
+            style = "gold"
+        elif i == 1:
+            rank_text = f"🥈 2nd PLACE: {n.upper()}"
+            style = "silver"
+        elif i == 2:
+            rank_text = f"🥉 3rd PLACE: {n.upper()}"
+            style = "bronze"
+        else:
+            rank_text = f"{i+1}th PLACE: {n.upper()}"
+            style = "standard"
+            
+        st.markdown(f"<div class='podium-card {style}'>{rank_text} — {s} PTS</div>", unsafe_allow_html=True)
+        
     c1, c2, c3 = st.columns(3)
     if c1.button("NEW GAME"): st.session_state.page = 'mode_selection'; st.rerun()
     if c2.button("RESET"): st.session_state.clear(); st.rerun()

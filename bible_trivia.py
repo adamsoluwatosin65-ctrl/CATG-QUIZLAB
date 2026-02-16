@@ -4,13 +4,11 @@ import json, time, os, random
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="CATG Quiz Pro", layout="centered")
 
-# --- GLOBAL SERVER STORAGE (The Fix) ---
-# This function creates a shared dictionary that all users can access.
+# --- GLOBAL SERVER STORAGE ---
 @st.cache_resource
 def get_global_rooms():
     return {}
 
-# Connect to the global storage
 GLOBAL_ROOMS = get_global_rooms()
 
 # --- HIGH-END ANIMATED DESIGN ---
@@ -74,13 +72,6 @@ st.markdown("""
         transition: all 0.3s ease;
     }
     .stButton>button:hover { background-color: #1e5631 !important; color: white !important; transform: scale(1.02); }
-
-    @keyframes spreadFloat {
-        0% { transform: translateY(110vh) rotate(0deg); opacity: 0; }
-        10% { opacity: 1; }
-        100% { transform: translateY(-20vh) rotate(20deg); opacity: 0; }
-    }
-    .balloon { position: fixed; font-size: 50px; animation: spreadFloat 10s linear infinite; z-index: 99999 !important; pointer-events: none; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -156,7 +147,6 @@ elif st.session_state.page == 'room_setup':
             st.session_state.room_code = r_code
             st.session_state.is_host = True
             st.session_state.time_limit = r_time * 60
-            # Initialize Global Room
             GLOBAL_ROOMS[r_code] = {'players': [], 'started': False, 'time': r_time*60, 'slots': r_slots}
             st.session_state.page = 'register'
             st.rerun()
@@ -199,7 +189,6 @@ elif st.session_state.page == 'register':
             all_qs = json.load(open('questions.json')) if os.path.exists('questions.json') else []
             st.session_state.update({'multi_players': player_names, 'questions_data': all_qs})
             if st.session_state.game_mode == 'room':
-                # Add player to global storage
                 if player_names[0] not in GLOBAL_ROOMS[st.session_state.room_code]['players']:
                     GLOBAL_ROOMS[st.session_state.room_code]['players'].append(player_names[0])
                 st.session_state.page = 'lobby'
@@ -208,27 +197,36 @@ elif st.session_state.page == 'register':
 
 elif st.session_state.page == 'lobby':
     st.markdown(f"<h2 style='text-align: center; color: white;'>Lobby: {st.session_state.room_code}</h2>", unsafe_allow_html=True)
-    room = GLOBAL_ROOMS[st.session_state.room_code]
     
-    st.markdown("<div class='question-box'>", unsafe_allow_html=True)
-    st.write(f"### Joined Players ({len(room['players'])}/{room['slots']}):")
-    for p in room['players']:
-        st.write(f"✅ {p}")
-    st.markdown("</div>", unsafe_allow_html=True)
+    # --- AUTOMATIC REFRESH FRAGMENT ---
+    @st.fragment(run_every=1)
+    def lobby_sync():
+        room = GLOBAL_ROOMS.get(st.session_state.room_code)
+        if not room:
+            st.error("Room disconnected.")
+            return
 
-    if st.session_state.is_host:
-        if st.button("START GAME FOR EVERYONE"):
-            room['started'] = True
+        # Player Check: If host started, move everyone
+        if not st.session_state.is_host and room['started']:
             st.session_state.page = 'quiz_init'
             st.rerun()
-    else:
-        st.info("Waiting for host to start...")
-        if room['started']:
-            st.session_state.page = 'quiz_init'
-            st.rerun()
-        # Refresh to check for status/new players
-        time.sleep(1.5)
-        st.rerun()
+
+        # Display UI
+        st.markdown("<div class='question-box'>", unsafe_allow_html=True)
+        st.write(f"### Joined Players ({len(room['players'])}/{room['slots']}):")
+        for p in room['players']:
+            st.write(f"✅ **{p}**")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        if st.session_state.is_host:
+            if st.button("START GAME FOR EVERYONE"):
+                room['started'] = True
+                st.session_state.page = 'quiz_init'
+                st.rerun()
+        else:
+            st.info("Waiting for host to start...")
+    
+    lobby_sync()
 
 elif st.session_state.page == 'quiz_init':
     st.session_state.update({

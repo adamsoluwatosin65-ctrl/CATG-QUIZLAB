@@ -1,4 +1,5 @@
 # --- LOBBY PAGE WITH AUTO-UPDATE ---
+import streamlit as st
 if st.session_state.page == 'lobby':
     st.markdown(f"<h2 style='text-align: center; color: white;'>Lobby: {st.session_state.room_code}</h2>", unsafe_allow_html=True)
     
@@ -34,5 +35,6 @@ if st.session_state.page == 'lobby':
 
     # Execute the fragment
     lobby_sync()
+
 
 

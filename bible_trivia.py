@@ -155,11 +155,18 @@ elif st.session_state.page == 'room_setup':
         join_code = st.text_input("Enter Room Code")
         if st.button("JOIN"):
             if join_code in GLOBAL_ROOMS:
-                st.session_state.room_code = join_code
-                st.session_state.is_host = False
-                st.session_state.time_limit = GLOBAL_ROOMS[join_code]['time']
-                st.session_state.page = 'register'
-                st.rerun()
+                room_data = GLOBAL_ROOMS[join_code]
+                # Check if room is full
+                if len(room_data['players']) >= room_data['slots']:
+                    st.error(f"⚠️ Room Full! (Max {room_data['slots']} players)")
+                elif room_data['started']:
+                    st.error("⚠️ Game already started!")
+                else:
+                    st.session_state.room_code = join_code
+                    st.session_state.is_host = False
+                    st.session_state.time_limit = room_data['time']
+                    st.session_state.page = 'register'
+                    st.rerun()
             else: st.error("Room code not found! Check with the creator.")
     
     if st.button("BACK"): st.session_state.page = 'mode_selection'; st.rerun()
@@ -198,7 +205,6 @@ elif st.session_state.page == 'register':
 elif st.session_state.page == 'lobby':
     st.markdown(f"<h2 style='text-align: center; color: white;'>Lobby: {st.session_state.room_code}</h2>", unsafe_allow_html=True)
     
-    # --- AUTOMATIC REFRESH FRAGMENT ---
     @st.fragment(run_every=1)
     def lobby_sync():
         room = GLOBAL_ROOMS.get(st.session_state.room_code)
@@ -206,12 +212,10 @@ elif st.session_state.page == 'lobby':
             st.error("Room disconnected.")
             return
 
-        # Player Check: If host started, move everyone
         if not st.session_state.is_host and room['started']:
             st.session_state.page = 'quiz_init'
             st.rerun()
 
-        # Display UI
         st.markdown("<div class='question-box'>", unsafe_allow_html=True)
         st.write(f"### Joined Players ({len(room['players'])}/{room['slots']}):")
         for p in room['players']:

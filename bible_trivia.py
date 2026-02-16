@@ -1,6 +1,6 @@
 # --- LOBBY PAGE WITH AUTO-UPDATE ---
 import streamlit as st
-if st.session_state.page == 'lobby':
+if st.session_state.get('page') == 'lobby':
     st.markdown(f"<h2 style='text-align: center; color: white;'>Lobby: {st.session_state.room_code}</h2>", unsafe_allow_html=True)
     
     # We put the player list and start logic inside a fragment that runs every 1 second
@@ -35,6 +35,7 @@ if st.session_state.page == 'lobby':
 
     # Execute the fragment
     lobby_sync()
+
 
 
 

@@ -9,7 +9,13 @@ st.set_page_config(page_title="CATG Quiz Pro", layout="centered")
 def get_global_rooms():
     return {}
 
+@st.cache_resource
+def get_global_leaderboard():
+    # This allows Room/Friend players to share a single leaderboard
+    return []
+
 GLOBAL_ROOMS = get_global_rooms()
+GLOBAL_LB = get_global_leaderboard()
 
 # --- HIGH-END ANIMATED DESIGN ---
 st.markdown("""
@@ -96,8 +102,11 @@ def high_speed_timer():
         elapsed = time.time() - st.session_state.start_time
         remaining = int(st.session_state.time_limit - elapsed)
         if remaining <= 0:
-            if (st.session_state.p_name, st.session_state.score) not in st.session_state.leaderboard:
-                st.session_state.leaderboard.append((st.session_state.p_name, st.session_state.score))
+            # Sync to both local and global leaderboard
+            entry = (st.session_state.p_name, st.session_state.score)
+            if entry not in st.session_state.leaderboard:
+                st.session_state.leaderboard.append(entry)
+                GLOBAL_LB.append(entry)
             st.session_state.page = 'summary'
             st.rerun()
         st.markdown(f"<div style='text-align:right; font-weight:900; color:white; font-size:24px; text-shadow: 1px 1px 5px black;'>⏱️ {remaining}s</div>", unsafe_allow_html=True)
@@ -176,7 +185,7 @@ elif st.session_state.page == 'register':
     
     player_names = []
     if st.session_state.game_mode in ['single', 'room']:
-        name = st.text_input("Enter Your Name")
+        name = st.text_input("Enter Your Name", key="single_name_input")
         if name: player_names.append(name)
     else:
         num_players = st.number_input("Number of Players", 2, 50, 2)
@@ -193,8 +202,6 @@ elif st.session_state.page == 'register':
     if st.button("JOIN LOBBY" if st.session_state.game_mode == 'room' else "START QUIZ"):
         if player_names:
             all_qs = json.load(open('questions.json')) if os.path.exists('questions.json') else []
-            # Shuffle questions once at registration so everyone gets a unique random order
-            random.shuffle(all_qs) 
             st.session_state.update({'multi_players': player_names, 'questions_data': all_qs})
             if st.session_state.game_mode == 'room':
                 if player_names[0] not in GLOBAL_ROOMS[st.session_state.room_code]['players']:
@@ -234,7 +241,7 @@ elif st.session_state.page == 'lobby':
     lobby_sync()
 
 elif st.session_state.page == 'quiz_init':
-    # Ensure a fresh shuffle for the player
+    # No repeat logic: Shuffle indices once at the start of the round
     indices = list(range(len(st.session_state.questions_data)))
     random.shuffle(indices)
     st.session_state.update({
@@ -247,33 +254,29 @@ elif st.session_state.page == 'quiz_init':
 elif st.session_state.page == 'quiz':
     play_audio("background_music.mp3")
     high_speed_timer()
+    
     if st.session_state.current_step < len(st.session_state.shuffled_indices):
-        idx = st.session_state.shuffled_indices[st.session_state.current_step]
-        q = st.session_state.questions_data[idx]
+        q_idx = st.session_state.shuffled_indices[st.session_state.current_step]
+        q = st.session_state.questions_data[q_idx]
         
-        # Unique ID using both player name and step to prevent UI state carry-over
-        unique_q_id = f"q_{st.session_state.p_name}_{st.session_state.current_step}"
+        # FIX: Using a complex key to prevent "disappearing" bug
+        # This key changes ONLY when the question step changes
+        step_key = f"step_{st.session_state.p_name}_{st.session_state.current_step}"
         
-        st.markdown(f"""
-            <div class='question-box'>
-                <p style='opacity:0.6;'>PLAYER: {st.session_state.p_name.upper()}</p>
-                <h2>{q['question']}</h2>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"<div class='question-box'><p style='opacity:0.6;'>PLAYER: {st.session_state.p_name.upper()}</p><h2>{q['question']}</h2></div>", unsafe_allow_html=True)
         
         for i, opt in enumerate(q['options']):
-            # unique key ensures buttons don't disappear or "click themselves"
-            if st.button(opt, key=f"{unique_q_id}_opt_{i}"):
-                if opt == q['answer']: 
-                    st.session_state.score += 1
-                else: 
-                    st.session_state.wrong_answers.append({'question': q['question'], 'correct': q['answer'], 'yours': opt})
+            if st.button(opt, key=f"{step_key}_opt_{i}"):
+                if opt == q['answer']: st.session_state.score += 1
+                else: st.session_state.wrong_answers.append({'question': q['question'], 'correct': q['answer'], 'yours': opt})
                 st.session_state.current_step += 1
                 st.rerun()
     else:
-        # Prevent duplicate entries in leaderboard for the same player session
-        if (st.session_state.p_name, st.session_state.score) not in st.session_state.leaderboard:
-            st.session_state.leaderboard.append((st.session_state.p_name, st.session_state.score))
+        # Sync final score
+        entry = (st.session_state.p_name, st.session_state.score)
+        if entry not in st.session_state.leaderboard:
+            st.session_state.leaderboard.append(entry)
+            GLOBAL_LB.append(entry)
         st.session_state.page = 'summary'
         st.rerun()
 
@@ -281,6 +284,7 @@ elif st.session_state.page == 'summary':
     st.markdown(f"<h1 style='text-align: center; color: white;'>Done, {st.session_state.p_name}!</h1>", unsafe_allow_html=True)
     st.markdown(f"<div class='question-box' style='text-align:center;'><h2>Score: {st.session_state.score}</h2></div>", unsafe_allow_html=True)
     has_next = st.session_state.game_mode == 'multi' and (st.session_state.current_player_idx + 1 < len(st.session_state.multi_players))
+    
     cA, cB, cC = st.columns(3)
     if has_next:
         if cA.button("NEXT PLAYER"): 
@@ -289,6 +293,7 @@ elif st.session_state.page == 'summary':
             st.rerun()
     else:
         if cA.button("NEW GAME"): st.session_state.page = 'mode_selection'; st.rerun()
+    
     if cB.button("LEADERBOARD"): st.session_state.page = 'final'; st.rerun()
     if cC.button("QUIT"): st.session_state.clear(); st.session_state.page = 'welcome'; st.rerun()
 
@@ -296,26 +301,33 @@ elif st.session_state.page == 'final':
     play_audio("winner_sound.mp3.mp3", loop=False)
     st.markdown("<h1 style='text-align: center; color: white;'>🏆 LEADERSHIP BOARD 🏆</h1>", unsafe_allow_html=True)
     
-    # Sort leaderboard by score descending
-    scores = sorted(st.session_state.leaderboard, key=lambda x: x[1], reverse=True)
+    # Logic to show TOP 3 (1st, 2nd, 3rd) for everyone
+    # We use a set to ensure unique names in case of rerun duplicates
+    unique_scores = {}
+    source_lb = GLOBAL_LB if st.session_state.game_mode == 'room' else st.session_state.leaderboard
     
-    for i, (n, s) in enumerate(scores):
-        if i == 0:
-            rank_text = f"🥇 1st PLACE: {n.upper()}"
-            style = "gold"
-        elif i == 1:
-            rank_text = f"🥈 2nd PLACE: {n.upper()}"
-            style = "silver"
-        elif i == 2:
-            rank_text = f"🥉 3rd PLACE: {n.upper()}"
-            style = "bronze"
-        else:
-            rank_text = f"{i+1}th PLACE: {n.upper()}"
-            style = "standard"
+    for name, score in source_lb:
+        if name not in unique_scores or score > unique_scores[name]:
+            unique_scores[name] = score
             
-        st.markdown(f"<div class='podium-card {style}'>{rank_text} — {s} PTS</div>", unsafe_allow_html=True)
+    sorted_lb = sorted(unique_scores.items(), key=lambda x: x[1], reverse=True)
+    
+    for i, (name, score) in enumerate(sorted_lb):
+        if i == 0:
+            style, rank = "gold", "1st PLACE (WINNER)"
+        elif i == 1:
+            style, rank = "silver", "2nd PLACE"
+        elif i == 2:
+            style, rank = "bronze", "3rd PLACE"
+        else:
+            style, rank = "standard", f"{i+1}th PLACE"
+            
+        st.markdown(f"<div class='podium-card {style}'>{rank}: {name.upper()} — {score} PTS</div>", unsafe_allow_html=True)
         
     c1, c2, c3 = st.columns(3)
-    if c1.button("NEW GAME"): st.session_state.page = 'mode_selection'; st.rerun()
-    if c2.button("RESET"): st.session_state.clear(); st.rerun()
+    if c1.button("BACK TO START"): st.session_state.page = 'mode_selection'; st.rerun()
+    if c2.button("RESET SCORES"): 
+        if st.session_state.game_mode != 'room': st.session_state.leaderboard = []
+        else: GLOBAL_LB.clear()
+        st.rerun()
     if c3.button("QUIT"): st.session_state.clear(); st.session_state.page = 'welcome'; st.rerun()

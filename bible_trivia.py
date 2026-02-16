@@ -4,10 +4,14 @@ import json, time, os, random
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="CATG Quiz Pro", layout="centered")
 
-# --- SHARED ROOM DATA (Simulated Backend) ---
-# In a real production environment, this would be a Database/Redis
-if 'GLOBAL_ROOMS' not in st.session_state:
-    st.session_state.GLOBAL_ROOMS = {}
+# --- GLOBAL SERVER STORAGE (The Fix) ---
+# This function creates a shared dictionary that all users can access.
+@st.cache_resource
+def get_global_rooms():
+    return {}
+
+# Connect to the global storage
+GLOBAL_ROOMS = get_global_rooms()
 
 # --- HIGH-END ANIMATED DESIGN ---
 st.markdown("""
@@ -18,7 +22,7 @@ st.markdown("""
         background: linear-gradient(-45deg, #1e5631, #2a7a45, #a8e063, #f0f4f1);
         background-size: 400% 400%;
         animation: activeGradient 12s ease infinite;
-        background_attachment: fixed;
+        background-attachment: fixed;
     }
 
     @keyframes activeGradient {
@@ -152,26 +156,26 @@ elif st.session_state.page == 'room_setup':
             st.session_state.room_code = r_code
             st.session_state.is_host = True
             st.session_state.time_limit = r_time * 60
-            # Initialize Shared Room
-            st.session_state.GLOBAL_ROOMS[r_code] = {'players': [], 'started': False, 'time': r_time*60, 'slots': r_slots}
+            # Initialize Global Room
+            GLOBAL_ROOMS[r_code] = {'players': [], 'started': False, 'time': r_time*60, 'slots': r_slots}
             st.session_state.page = 'register'
             st.rerun()
             
     with tab2:
         join_code = st.text_input("Enter Room Code")
         if st.button("JOIN"):
-            if join_code in st.session_state.GLOBAL_ROOMS:
+            if join_code in GLOBAL_ROOMS:
                 st.session_state.room_code = join_code
                 st.session_state.is_host = False
-                st.session_state.time_limit = st.session_state.GLOBAL_ROOMS[join_code]['time']
+                st.session_state.time_limit = GLOBAL_ROOMS[join_code]['time']
                 st.session_state.page = 'register'
                 st.rerun()
-            else: st.error("Room not found!")
+            else: st.error("Room code not found! Check with the creator.")
     
     if st.button("BACK"): st.session_state.page = 'mode_selection'; st.rerun()
 
 elif st.session_state.page == 'register':
-    title = f"Joining Room: {st.session_state.room_code}" if st.session_state.game_mode == 'room' else "Player Entry"
+    title = f"Room: {st.session_state.room_code}" if st.session_state.game_mode == 'room' else "Player Entry"
     st.markdown(f"<h2 style='text-align: center; color: white;'>{title}</h2>", unsafe_allow_html=True)
     
     player_names = []
@@ -190,23 +194,24 @@ elif st.session_state.page == 'register':
         limit = st.selectbox("Time Limit (Seconds)", [30, 60, 120, 300], index=1)
         st.session_state.time_limit = limit
 
-    if st.button("ENTER LOBBY" if st.session_state.game_mode == 'room' else "START QUIZ"):
+    if st.button("JOIN LOBBY" if st.session_state.game_mode == 'room' else "START QUIZ"):
         if player_names:
             all_qs = json.load(open('questions.json')) if os.path.exists('questions.json') else []
             st.session_state.update({'multi_players': player_names, 'questions_data': all_qs})
             if st.session_state.game_mode == 'room':
-                st.session_state.GLOBAL_ROOMS[st.session_state.room_code]['players'].append(player_names[0])
+                # Add player to global storage
+                if player_names[0] not in GLOBAL_ROOMS[st.session_state.room_code]['players']:
+                    GLOBAL_ROOMS[st.session_state.room_code]['players'].append(player_names[0])
                 st.session_state.page = 'lobby'
             else: st.session_state.page = 'quiz_init'
             st.rerun()
 
-# --- NEW LOBBY PAGE ---
 elif st.session_state.page == 'lobby':
     st.markdown(f"<h2 style='text-align: center; color: white;'>Lobby: {st.session_state.room_code}</h2>", unsafe_allow_html=True)
-    room = st.session_state.GLOBAL_ROOMS[st.session_state.room_code]
+    room = GLOBAL_ROOMS[st.session_state.room_code]
     
     st.markdown("<div class='question-box'>", unsafe_allow_html=True)
-    st.write("### Joined Players:")
+    st.write(f"### Joined Players ({len(room['players'])}/{room['slots']}):")
     for p in room['players']:
         st.write(f"✅ {p}")
     st.markdown("</div>", unsafe_allow_html=True)
@@ -218,11 +223,11 @@ elif st.session_state.page == 'lobby':
             st.rerun()
     else:
         st.info("Waiting for host to start...")
-        # Auto-refresh for joiners to check if host started
-        time.sleep(1)
         if room['started']:
             st.session_state.page = 'quiz_init'
             st.rerun()
+        # Refresh to check for status/new players
+        time.sleep(1.5)
         st.rerun()
 
 elif st.session_state.page == 'quiz_init':

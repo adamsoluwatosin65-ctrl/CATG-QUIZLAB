@@ -9,16 +9,19 @@ st.set_page_config(page_title="CATG Quiz Pro", layout="centered")
 def get_global_rooms(): return {}
 @st.cache_resource
 def get_global_leaderboard(): return []
+@st.cache_resource
+def get_global_used_questions(): return [] # New global tracker
 
 GLOBAL_ROOMS = get_global_rooms()
 GLOBAL_LB = get_global_leaderboard()
+GLOBAL_USED = get_global_used_questions() # Tracks questions across all sessions
 
 # --- REFRESH RESET LOGIC (FIXED) ---
 if "initialized" not in st.session_state:
     GLOBAL_LB.clear()
     GLOBAL_ROOMS.clear()
+    # Note: We do NOT clear GLOBAL_USED here because you want it to persist even on refresh
     st.session_state["initialized"] = True
-    # Force the page back to welcome so it doesn't try to load a deleted room
     st.session_state.page = 'welcome' 
 
 # --- ULTRA-FINE UI & ANIMATIONS ---
@@ -191,7 +194,7 @@ elif st.session_state.page == 'register':
                 if st.session_state.room_code in GLOBAL_ROOMS:
                     GLOBAL_ROOMS[st.session_state.room_code]['players'].append(name)
                     st.session_state.page = 'lobby'
-                else: st.session_state.page = 'welcome' # Safety if room vanished
+                else: st.session_state.page = 'welcome'
             else: st.session_state.page = 'quiz_init'
             st.rerun()
     nav_footer(back_to='mode_selection')
@@ -200,11 +203,9 @@ elif st.session_state.page == 'lobby':
     @st.fragment(run_every=1)
     def lobby_sync():
         room = GLOBAL_ROOMS.get(st.session_state.room_code)
-        # --- ADDED SAFETY CHECK ---
         if room is None:
             st.session_state.page = 'welcome'
             st.rerun()
-        # --------------------------
         st.markdown(f"<h2 style='text-align: center; color: white;'>ROOM: {st.session_state.room_code}</h2>", unsafe_allow_html=True)
         if not st.session_state.is_host and room['started']: st.session_state.page = 'quiz_init'; st.rerun()
         st.markdown("<div class='question-box'>", unsafe_allow_html=True)
@@ -216,21 +217,48 @@ elif st.session_state.page == 'lobby':
     nav_footer(back_to='room_setup')
 
 elif st.session_state.page == 'quiz_init':
-    st.session_state.update({'p_name': st.session_state.multi_players[0], 'start_time': time.time(), 'score': 0, 'current_step': 0, 'page': 'quiz', 'shuffled_indices': list(range(len(st.session_state.questions_data))), 'wrong_answers': []})
+    # --- NO-REPEAT LOGIC ---
+    all_indices = list(range(len(st.session_state.questions_data)))
+    # Filter out indices that have been stored in GLOBAL_USED
+    available_indices = [i for i in all_indices if i not in GLOBAL_USED]
+    
+    # If all questions have been used, reset the tracker to start over
+    if not available_indices:
+        GLOBAL_USED.clear()
+        available_indices = all_indices
+        
+    st.session_state.update({
+        'p_name': st.session_state.multi_players[0], 
+        'start_time': time.time(), 
+        'score': 0, 
+        'current_step': 0, 
+        'page': 'quiz', 
+        'shuffled_indices': available_indices, 
+        'wrong_answers': []
+    })
     random.shuffle(st.session_state.shuffled_indices)
     st.rerun()
 
 elif st.session_state.page == 'quiz':
     play_audio("background_music.mp3")
     high_speed_timer()
-    q = st.session_state.questions_data[st.session_state.shuffled_indices[st.session_state.current_step]]
+    
+    # Get the global index of the current question
+    actual_index = st.session_state.shuffled_indices[st.session_state.current_step]
+    q = st.session_state.questions_data[actual_index]
+    
     st.markdown(f"<div class='question-box'><h2>{q['question']}</h2></div>", unsafe_allow_html=True)
     for i, opt in enumerate(q['options']):
         if st.button(opt, key=f"q_{st.session_state.current_step}_{i}"):
+            # Mark this question as USED globally
+            if actual_index not in GLOBAL_USED:
+                GLOBAL_USED.append(actual_index)
+                
             if opt == q['answer']: st.session_state.score += 1
             else: st.session_state.wrong_answers.append({'q': q['question'], 'correct': q['answer'], 'yours': opt})
             st.session_state.current_step += 1
-            if st.session_state.current_step >= len(st.session_state.questions_data):
+            
+            if st.session_state.current_step >= len(st.session_state.shuffled_indices):
                 entry = (st.session_state.p_name, st.session_state.score)
                 if entry not in st.session_state.leaderboard: 
                     st.session_state.leaderboard.append(entry)

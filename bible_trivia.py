@@ -125,9 +125,14 @@ def nav_footer(back_to=None):
         if c3.button("🚪 QUIT", key=f"nav_q_{st.session_state.page}"):
             st.session_state.confirm_quit = True; st.rerun()
     else:
-        st.warning("Quit?")
+        st.warning("Quit & Reset All Data?")
         k1, k2 = st.columns(2)
-        if k1.button("✅ YES", key=f"q_y_{st.session_state.page}"): st.session_state.clear(); st.rerun()
+        if k1.button("✅ YES", key=f"q_y_{st.session_state.page}"): 
+            # RESET GLOBAL STORAGE
+            GLOBAL_LB.clear()
+            GLOBAL_ROOMS.clear()
+            st.session_state.clear(); 
+            st.rerun()
         if k2.button("❌ NO", key=f"q_n_{st.session_state.page}"): st.session_state.confirm_quit = False; st.rerun()
 
 # --- PAGES ---
@@ -224,7 +229,6 @@ elif st.session_state.page == 'quiz':
 elif st.session_state.page == 'summary':
     st.markdown(f"<div class='question-box' style='text-align:center;'><h2>Your Score: {st.session_state.score}</h2></div>", unsafe_allow_html=True)
     
-    # --- ADDED REVIEW SECTION ---
     if st.session_state.get('wrong_answers'):
         with st.expander("🔍 REVIEW FAILED ANSWERS", expanded=False):
             for item in st.session_state.wrong_answers:
@@ -236,13 +240,11 @@ elif st.session_state.page == 'summary':
                 """, unsafe_allow_html=True)
     else:
         st.success("Perfect Score! You are a Bible Scholar! ✨")
-    # ----------------------------
 
     if st.button("GO TO LEADERBOARD"): st.session_state.page = 'final'; st.rerun()
     nav_footer(back_to='mode_selection')
 
 elif st.session_state.page == 'final':
-    # BALLOON EFFECTS
     for i in range(10): st.markdown(f'<div class="balloon" style="left:{random.randint(0,90)}%; animation-delay:{random.random()*5}s;"></div>', unsafe_allow_html=True)
     play_audio("winner_sound.mp3.mp3", loop=False)
     

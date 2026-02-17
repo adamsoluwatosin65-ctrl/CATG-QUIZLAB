@@ -223,6 +223,21 @@ elif st.session_state.page == 'quiz':
 
 elif st.session_state.page == 'summary':
     st.markdown(f"<div class='question-box' style='text-align:center;'><h2>Your Score: {st.session_state.score}</h2></div>", unsafe_allow_html=True)
+    
+    # --- ADDED REVIEW SECTION ---
+    if st.session_state.get('wrong_answers'):
+        with st.expander("🔍 REVIEW FAILED ANSWERS", expanded=False):
+            for item in st.session_state.wrong_answers:
+                st.markdown(f"""
+                **Question:** {item['q']}  
+                * ❌ **Yours:** <span style="color:red;">{item['yours']}</span>  
+                * ✅ **Correct:** <span style="color:green;">{item['correct']}</span>
+                <hr style="margin:10px 0;">
+                """, unsafe_allow_html=True)
+    else:
+        st.success("Perfect Score! You are a Bible Scholar! ✨")
+    # ----------------------------
+
     if st.button("GO TO LEADERBOARD"): st.session_state.page = 'final'; st.rerun()
     nav_footer(back_to='mode_selection')
 

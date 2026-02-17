@@ -13,12 +13,13 @@ def get_global_leaderboard(): return []
 GLOBAL_ROOMS = get_global_rooms()
 GLOBAL_LB = get_global_leaderboard()
 
-# --- REFRESH RESET LOGIC ---
-# If this is a fresh browser load (session_state is empty), clear the global leaderboard
+# --- REFRESH RESET LOGIC (FIXED) ---
 if "initialized" not in st.session_state:
     GLOBAL_LB.clear()
     GLOBAL_ROOMS.clear()
     st.session_state["initialized"] = True
+    # Force the page back to welcome so it doesn't try to load a deleted room
+    st.session_state.page = 'welcome' 
 
 # --- ULTRA-FINE UI & ANIMATIONS ---
 st.markdown("""
@@ -135,10 +136,8 @@ def nav_footer(back_to=None):
         st.warning("Quit?")
         k1, k2 = st.columns(2)
         if k1.button("✅ YES", key=f"q_y_{st.session_state.page}"): 
-            # --- RESET LOGIC ---
             GLOBAL_LB.clear()
             GLOBAL_ROOMS.clear()
-            # --------------------
             st.session_state.clear(); st.rerun()
         if k2.button("❌ NO", key=f"q_n_{st.session_state.page}"): st.session_state.confirm_quit = False; st.rerun()
 
@@ -189,8 +188,10 @@ elif st.session_state.page == 'register':
             st.session_state.multi_players = [name]
             st.session_state.questions_data = json.load(open('questions.json')) if os.path.exists('questions.json') else []
             if st.session_state.game_mode == 'room':
-                GLOBAL_ROOMS[st.session_state.room_code]['players'].append(name)
-                st.session_state.page = 'lobby'
+                if st.session_state.room_code in GLOBAL_ROOMS:
+                    GLOBAL_ROOMS[st.session_state.room_code]['players'].append(name)
+                    st.session_state.page = 'lobby'
+                else: st.session_state.page = 'welcome' # Safety if room vanished
             else: st.session_state.page = 'quiz_init'
             st.rerun()
     nav_footer(back_to='mode_selection')
@@ -199,6 +200,11 @@ elif st.session_state.page == 'lobby':
     @st.fragment(run_every=1)
     def lobby_sync():
         room = GLOBAL_ROOMS.get(st.session_state.room_code)
+        # --- ADDED SAFETY CHECK ---
+        if room is None:
+            st.session_state.page = 'welcome'
+            st.rerun()
+        # --------------------------
         st.markdown(f"<h2 style='text-align: center; color: white;'>ROOM: {st.session_state.room_code}</h2>", unsafe_allow_html=True)
         if not st.session_state.is_host and room['started']: st.session_state.page = 'quiz_init'; st.rerun()
         st.markdown("<div class='question-box'>", unsafe_allow_html=True)
@@ -235,25 +241,19 @@ elif st.session_state.page == 'quiz':
 
 elif st.session_state.page == 'summary':
     st.markdown(f"<div class='question-box' style='text-align:center;'><h2>Your Score: {st.session_state.score}</h2></div>", unsafe_allow_html=True)
-    
-    # --- REVIEW SECTION ---
     if st.session_state.get('wrong_answers'):
         with st.expander("🔍 REVIEW FAILED ANSWERS"):
             for item in st.session_state.wrong_answers:
                 st.markdown(f"**Q:** {item['q']}  \n❌ {item['yours']} | ✅ {item['correct']}")
                 st.write("---")
-    # ----------------------
-
     if st.button("GO TO LEADERBOARD"): st.session_state.page = 'final'; st.rerun()
     nav_footer(back_to='mode_selection')
 
 elif st.session_state.page == 'final':
     for i in range(10): st.markdown(f'<div class="balloon" style="left:{random.randint(0,90)}%; animation-delay:{random.random()*5}s;"></div>', unsafe_allow_html=True)
     play_audio("winner_sound.mp3.mp3", loop=False)
-    
     source_lb = GLOBAL_LB if st.session_state.game_mode == 'room' else st.session_state.leaderboard
     sorted_lb = sorted(source_lb, key=lambda x: x[1], reverse=True)
-    
     if sorted_lb:
         st.markdown(f"<div class='winner-box'><h1>🏆 THE WINNER 🏆</h1><h2>{sorted_lb[0][0].upper()}</h2><h3>{sorted_lb[0][1]} POINTS</h3></div>", unsafe_allow_html=True)
         st.markdown("<h2 style='color:white; text-align:center;'>Leadership Board</h2>", unsafe_allow_html=True)

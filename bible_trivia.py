@@ -125,14 +125,14 @@ def nav_footer(back_to=None):
         if c3.button("🚪 QUIT", key=f"nav_q_{st.session_state.page}"):
             st.session_state.confirm_quit = True; st.rerun()
     else:
-        st.warning("Quit & Reset All Data?")
+        st.warning("Quit?")
         k1, k2 = st.columns(2)
         if k1.button("✅ YES", key=f"q_y_{st.session_state.page}"): 
-            # RESET GLOBAL STORAGE
+            # --- RESET LOGIC ---
             GLOBAL_LB.clear()
             GLOBAL_ROOMS.clear()
-            st.session_state.clear(); 
-            st.rerun()
+            # --------------------
+            st.session_state.clear(); st.rerun()
         if k2.button("❌ NO", key=f"q_n_{st.session_state.page}"): st.session_state.confirm_quit = False; st.rerun()
 
 # --- PAGES ---
@@ -229,17 +229,13 @@ elif st.session_state.page == 'quiz':
 elif st.session_state.page == 'summary':
     st.markdown(f"<div class='question-box' style='text-align:center;'><h2>Your Score: {st.session_state.score}</h2></div>", unsafe_allow_html=True)
     
+    # --- REVIEW SECTION ---
     if st.session_state.get('wrong_answers'):
-        with st.expander("🔍 REVIEW FAILED ANSWERS", expanded=False):
+        with st.expander("🔍 REVIEW FAILED ANSWERS"):
             for item in st.session_state.wrong_answers:
-                st.markdown(f"""
-                **Question:** {item['q']}  
-                * ❌ **Yours:** <span style="color:red;">{item['yours']}</span>  
-                * ✅ **Correct:** <span style="color:green;">{item['correct']}</span>
-                <hr style="margin:10px 0;">
-                """, unsafe_allow_html=True)
-    else:
-        st.success("Perfect Score! You are a Bible Scholar! ✨")
+                st.markdown(f"**Q:** {item['q']}  \n❌ {item['yours']} | ✅ {item['correct']}")
+                st.write("---")
+    # ----------------------
 
     if st.button("GO TO LEADERBOARD"): st.session_state.page = 'final'; st.rerun()
     nav_footer(back_to='mode_selection')

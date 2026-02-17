@@ -13,6 +13,13 @@ def get_global_leaderboard(): return []
 GLOBAL_ROOMS = get_global_rooms()
 GLOBAL_LB = get_global_leaderboard()
 
+# --- REFRESH RESET LOGIC ---
+# If this is a fresh browser load (session_state is empty), clear the global leaderboard
+if "initialized" not in st.session_state:
+    GLOBAL_LB.clear()
+    GLOBAL_ROOMS.clear()
+    st.session_state["initialized"] = True
+
 # --- ULTRA-FINE UI & ANIMATIONS ---
 st.markdown("""
     <style>
